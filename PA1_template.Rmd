@@ -1,25 +1,144 @@
 ---
-title: "Reproducible Research: Peer Assessment 1"
-output: 
-  html_document:
-    keep_md: true
+title: "Reproducible Research P1"
+author: "Mauricio Rueda"
+date: "19 de abril de 2019"
+output: html_document
 ---
 
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
 
-## Loading and preprocessing the data
+### Settings and libraries 
+```{r setting up}
+Sys.setlocale("LC_ALL","English")
+setwd("~/GitHub/RepData_PeerAssessment1")
+library(lattice)
+library(ggplot2)
+```
+
+### tasks list
+
+1. Load the data (i.e. read.csv()\color{red}{\verb|read.csv()|}read.csv())
+```{r load data}
+datos <- read.csv("activity.csv",stringsAsFactors = FALSE)
+```
+
+1.1. Process/transform the data (if necessary) into a format suitable for your analysis
+```{r process data}
+datos$date <- as.Date(datos$date)
+
+datos_hist <- datos[!is.na(datos$steps),]
+```
+
+2.Histogram of the total number of steps taken each day
+
+```{r task2}
+tabla.sum <- aggregate(datos_hist[,1], list(datos_hist$date), sum)
+colnames(tabla.sum) <- c("date","steps")
+ggplot(tabla.sum,aes(x=date,y=steps))+geom_bar(stat='identity')
+```
+
+3.Mean and median number of steps taken each day
+```{r task3}
+tabla.mean <- aggregate(datos_hist[,1], list(datos_hist$date), mean)
+
+colnames(tabla.mean) <- c("date","mean")
+
+print(tabla.mean,type="html")
+
+tabla.median <- aggregate(datos_hist[,1], list(datos_hist$date), median)
+
+colnames(tabla.median) <- c("date","median")
+
+print(tabla.median,type="html")
+
+```
+
+4.Time series plot of the average number of steps taken
+```{r task4}
+tabla.five <- aggregate(datos_hist[,1], list(datos_hist$interval), mean)
+
+colnames(tabla.five) <- c("interval","mean")
+```
+
+```{r figura1,fig.showtext="fig1"}
+plot(tabla.five$interval,tabla.five$mean, type="l", col="green", 
+     xlab="5-minute interval", ylab="AVG Steps", main="average daily activity pattern")
+```
 
 
 
-## What is mean total number of steps taken per day?
+5.The 5-minute interval that, on average, contains the maximum number of steps
+```{r task5}
+#maximum number of steps
+tabla.five[which.max(tabla.five$mean),]
+```
+
+6.Code to describe and show a strategy for imputing missing data
+
+6.1 Calculate and report the total number of missing values in the dataset (i.e. the total number of rows with NA\color{red}{\verb|NA|}NAs)
+
+```{r task61}
+print(colSums(is.na(datos)),type="html")
+```
+
+6.2 replace de mising steps data with the mean of steps for its own interval
+
+```{r task62}
+for(i in 1:nrow(datos)){
+  if(is.na(datos[i,1])){
+    intervalo <- datos[i,3]
+    mean_steps <- round(mean(datos[datos$interval == intervalo,1],na.rm = TRUE))
+    datos[i,1] <- mean_steps
+  }
+}
+```
+
+7. Make a histogram of the total number of steps taken each day and Calculate and report the mean and median total number of steps taken per day.
+```{r task7}
+ggplot(datos,aes(x=date,y=steps))+geom_bar(stat='identity')
+
+tabla.mean_new <- aggregate(datos[,1], list(datos$date), mean)
+
+colnames(tabla.mean_new) <- c("date","mean")
+
+tabla.median_new <- aggregate(datos[,1], list(datos$date), median)
+
+colnames(tabla.median_new) <- c("date","median")
+```
 
 
+As you can see the missing data was related with missing days. So now the analisys looks complete.
 
-## What is the average daily activity pattern?
+8. Panel plot comparing the average number of steps taken per 5-minute interval across weekdays and weekends
 
+8.1 Create a new factor variable in the dataset with two levels (weekday and weekend) indicating whether a given date is a weekday or weekend day.
 
+```{r task8}
+datos_last <- datos
 
-## Imputing missing values
+weekends <- c("Saturday","Sunday")
 
+datos_last$day_type <- apply(datos_last, 1, FUN = function(x){
+  if(weekdays(as.Date(x[2])) %in% weekends){
+    "weekend"   
+  }
+  else
+    "weekday"
+})
 
+datos_last$day_type <- as.factor(datos_last$day_type)
 
-## Are there differences in activity patterns between weekdays and weekends?
+tabla.by_type <- aggregate(datos_last[,1], list(datos_last$interval,datos_last$day_type), sum)
+
+colnames(tabla.by_type) <- c("interval","day_type","steps")
+```
+
+8.2 Make a panel plot containing a time series plot (i.e. type = "l"\color{red}{\verb|type = "l"|}type="l") of the 5-minute interval (x-axis) and the average number of steps taken, averaged across all weekday days or weekend days (y-axis).
+
+```{r task9}
+#maximum number of steps
+xyplot(steps~interval|day_type,data=tabla.by_type,type="l",scales=list(y=list(relation="free")),layout=c(1,2))
+```
+
